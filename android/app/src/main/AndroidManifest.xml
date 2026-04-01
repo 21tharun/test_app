@@ -8,7 +8,12 @@
     <!-- ── Bluetooth permissions (API ≤ 30 legacy) ──────────────────────── -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-
+    
+    <!-- camera permissions -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    
+    
     <!-- ── Hardware features ─────────────────────────────────────────────── -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 

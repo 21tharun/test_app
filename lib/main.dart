@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart';
+import 'screens/app_router.dart';
 import 'screens/bluetooth_connection_screen.dart';
-import 'screens/device_list_screen.dart';
 import 'screens/temperature_control_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/contact_screen.dart';
+import 'screens/qr_scanner_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/my_device_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -18,18 +20,19 @@ class TestApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Test App',
+      title: 'Nuetech Controller',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
-      initialRoute: '/',
+      home: const AppRouter(),
       routes: {
-        '/': (_) => const SplashScreen(),
         '/bluetooth_connect': (_) => const BluetoothConnectionScreen(),
-        '/device_scan': (_) => const DeviceListScreen(),
         '/temperature_control': (_) => const TemperatureControlScreen(),
         '/about': (_) => const AboutScreen(),
         '/contact': (_) => const ContactScreen(),
+        '/qr_scanner': (_) => const QrScannerScreen(),
+        '/onboarding': (_) => const OnboardingScreen(),
+        '/my_device': (_) => const MyDeviceScreen(),
       },
     );
   }

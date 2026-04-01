@@ -3,9 +3,90 @@ import '../services/bluetooth_service.dart';
 import '../widgets/main_app_bar.dart';
 import '../widgets/app_drawer.dart';
 import 'device_list_screen.dart';
+import 'temperature_control_screen.dart';
 
-class BluetoothConnectionScreen extends StatelessWidget {
-  const BluetoothConnectionScreen({super.key});
+class BluetoothConnectionScreen extends StatefulWidget {
+  final bool redirectToController;
+
+  const BluetoothConnectionScreen({
+    super.key,
+    this.redirectToController = false,
+  });
+
+  @override
+  State<BluetoothConnectionScreen> createState() =>
+      _BluetoothConnectionScreenState();
+}
+
+class _BluetoothConnectionScreenState
+    extends State<BluetoothConnectionScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    BleService.instance.connectionStatus.addListener(_onConnectionChanged);
+  }
+
+  @override
+  void dispose() {
+    BleService.instance.connectionStatus.removeListener(_onConnectionChanged);
+    super.dispose();
+  }
+
+  void _onConnectionChanged() {
+    final status = BleService.instance.connectionStatus.value;
+
+    if (status == BleConnectionStatus.connected) {
+      BleService.instance.stopScan();
+
+      if (widget.redirectToController) {
+        // Coming from controller flow → auto navigate to controller
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const TemperatureControlScreen(),
+            ),
+          );
+        }
+      } else {
+        // Opened manually from drawer → just show snackbar + optional button
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  SizedBox(width: 10),
+                  Text('Device connected successfully!'),
+                ],
+              ),
+              backgroundColor: Colors.green.shade700,
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'Go to Controller',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const TemperatureControlScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } else if (status == BleConnectionStatus.failed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Connection failed. Please try again.'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 3),
+        ));
+      }
+    }
+  }
 
   void _showCenterAlert(BuildContext context, String message, bool isSuccess) {
     showDialog(
@@ -51,35 +132,43 @@ class BluetoothConnectionScreen extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Main Status Card ─────────────────────────────────────────
+                  // ── Main Status Card ──────────────────────────────────
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 48, horizontal: 24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF), // White
+                      color: const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFE2E8F0)), // Slate 200
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Column(
                       children: [
-                        // Pulsing / Concentric Icon
                         Container(
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isConnected ? const Color(0xFFD1FAE5) : const Color(0xFFDBEAFE), // Light Emerald / Light Blue bg
+                            color: isConnected
+                                ? const Color(0xFFD1FAE5)
+                                : const Color(0xFFDBEAFE),
                             border: Border.all(
-                              color: isConnected ? const Color(0xFF6EE7B7) : const Color(0xFF93C5FD), // Emerald 300 / Blue 300
+                              color: isConnected
+                                  ? const Color(0xFF6EE7B7)
+                                  : const Color(0xFF93C5FD),
                               width: 15,
                             ),
                           ),
                           child: Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isConnected ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                              color: isConnected
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFF3B82F6),
                             ),
                             child: Icon(
-                              isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                              isConnected
+                                  ? Icons.bluetooth_connected
+                                  : Icons.bluetooth,
                               color: Colors.white,
                               size: 32,
                             ),
@@ -91,7 +180,7 @@ class BluetoothConnectionScreen extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A), // Slate 900
+                            color: Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -102,7 +191,7 @@ class BluetoothConnectionScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF64748B), // Slate 500
+                            color: Color(0xFF64748B),
                             height: 1.5,
                           ),
                         ),
@@ -112,26 +201,31 @@ class BluetoothConnectionScreen extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // ── Disconnect Button ────────────────────────────────────────
+                  // ── Disconnect Button ─────────────────────────────────
                   SizedBox(
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         if (isConnected) {
                           ble.disconnectDevice();
-                          _showCenterAlert(context, 'Device Disconnected', true);
+                          _showCenterAlert(
+                              context, 'Device Disconnected', true);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('No device connected to disconnect')),
+                            const SnackBar(
+                                content: Text(
+                                    'No device connected to disconnect')),
                           );
                         }
                       },
                       icon: const Icon(Icons.bluetooth_disabled, size: 20),
-                      label: const Text('Disconnect', style: TextStyle(fontSize: 16)),
+                      label: const Text('Disconnect',
+                          style: TextStyle(fontSize: 16)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444), // Red 500
+                        backgroundColor: const Color(0xFFEF4444),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
                     ),
@@ -139,7 +233,7 @@ class BluetoothConnectionScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // ── Action Buttons ─────────────────────────────────────────
+                  // ── Enable + Scan Buttons ─────────────────────────────
                   Row(
                     children: [
                       Expanded(
@@ -150,21 +244,25 @@ class BluetoothConnectionScreen extends StatelessWidget {
                               final error = await ble.enableBluetooth();
                               if (context.mounted) {
                                 if (error == 'already_on') {
-                                  _showCenterAlert(context, 'Bluetooth is already on', true);
+                                  _showCenterAlert(context,
+                                      'Bluetooth is already on', true);
                                 } else {
                                   _showCenterAlert(
                                       context,
-                                      error ?? 'Bluetooth enabled successfully',
+                                      error ??
+                                          'Bluetooth enabled successfully',
                                       error == null);
                                 }
                               }
                             },
                             icon: const Icon(Icons.bluetooth, size: 20),
-                            label: const Text('Enable', style: TextStyle(fontSize: 16)),
+                            label: const Text('Enable',
+                                style: TextStyle(fontSize: 16)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF3B82F6),
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
                               elevation: 0,
                             ),
                           ),
@@ -177,17 +275,24 @@ class BluetoothConnectionScreen extends StatelessWidget {
                           child: ElevatedButton.icon(
                             onPressed: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const DeviceListScreen()),
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const DeviceListScreen()),
                               );
                             },
-                            icon: const Icon(Icons.search, size: 20, color: Color(0xFF0F172A)),
-                            label: const Text('Scan', style: TextStyle(fontSize: 16, color: Color(0xFF0F172A))),
+                            icon: const Icon(Icons.search,
+                                size: 20, color: Color(0xFF0F172A)),
+                            label: const Text('Scan',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFF0F172A))),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF1F5F9), // Slate 100 button
-                              foregroundColor: const Color(0xFF0F172A), // Slate 900
+                              backgroundColor: const Color(0xFFF1F5F9),
+                              foregroundColor: const Color(0xFF0F172A),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                side: const BorderSide(color: Color(0xFFE2E8F0)), // Slate 200
+                                side: const BorderSide(
+                                    color: Color(0xFFE2E8F0)),
                               ),
                               elevation: 0,
                             ),
@@ -199,29 +304,43 @@ class BluetoothConnectionScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // ── Info Card ──────────────────────────────────────────────
+                  // ── Info Card ─────────────────────────────────────────
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF), // Blue 50
+                      color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFBFDBFE)), // Blue 200
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline, color: Color(0xFF3B82F6), size: 20),
+                        const Icon(Icons.info_outline,
+                            color: Color(0xFF3B82F6), size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: RichText(
                             text: const TextSpan(
-                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.5),
+                              style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13,
+                                  height: 1.5),
                               children: [
                                 TextSpan(text: 'Keep the device within '),
-                                TextSpan(text: '5–10 metres', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
+                                TextSpan(
+                                    text: '5–10 metres',
+                                    style: TextStyle(
+                                        color: Color(0xFF0F172A),
+                                        fontWeight: FontWeight.bold)),
                                 TextSpan(text: '. Ensure '),
-                                TextSpan(text: 'Bluetooth', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
-                                TextSpan(text: ' is enabled on both devices before scanning.'),
+                                TextSpan(
+                                    text: 'Bluetooth',
+                                    style: TextStyle(
+                                        color: Color(0xFF0F172A),
+                                        fontWeight: FontWeight.bold)),
+                                TextSpan(
+                                    text:
+                                        ' is enabled on both devices before scanning.'),
                               ],
                             ),
                           ),
