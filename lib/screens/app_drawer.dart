@@ -101,7 +101,7 @@ class AppDrawer extends StatelessWidget {
 
                     // My Device
                     _MenuCard(
-                      icon: Icons.water_heater_outlined,
+                      icon: Icons.water_drop_outlined,
                       title: 'My Device',
                       subtitle: 'Manage your device',
                       iconColor: const Color(0xFF3B82F6),

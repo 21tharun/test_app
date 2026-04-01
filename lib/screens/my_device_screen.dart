@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/device_model.dart';
 import '../services/database_helper.dart';
-import '../widgets/app_drawer.dart';
+import 'app_drawer.dart';
 import 'qr_scanner_screen.dart';
 import 'bluetooth_connection_screen.dart';
 
@@ -268,7 +268,7 @@ class _DeviceExistsState extends StatelessWidget {
                         color: const Color(0xFF3B82F6).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.water_heater_outlined,
+                      child: const Icon(Icons.water_drop_outlined,
                           color: Color(0xFF3B82F6), size: 28),
                     ),
                     const SizedBox(width: 14),

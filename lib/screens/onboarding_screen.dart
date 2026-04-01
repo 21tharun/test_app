@@ -15,30 +15,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<_OnboardingPage> _pages = const [
     _OnboardingPage(
-      icon: Icons.water_heater_outlined,
+      icon: Icons.water_drop_outlined,
       iconColor: Color(0xFF3B82F6),
-      iconBgColor: Color(0xFFDBEAFE),
+      iconBgColor: Color(0xFFEFF6FF),
       title: 'Welcome to Nuetech Controller',
       subtitle: 'Smart control for your water heating system — right from your phone.',
     ),
     _OnboardingPage(
       icon: Icons.qr_code_scanner,
       iconColor: Color(0xFF10B981),
-      iconBgColor: Color(0xFFD1FAE5),
+      iconBgColor: Color(0xFFECFDF5),
       title: 'Scan Your Device',
       subtitle: 'Use the QR code on your solar water heater to instantly add it.',
     ),
     _OnboardingPage(
       icon: Icons.bluetooth,
       iconColor: Color(0xFF8B5CF6),
-      iconBgColor: Color(0xFFEDE9FE),
+      iconBgColor: Color(0xFFF5F3FF),
       title: 'Connect via Bluetooth',
       subtitle: 'Pair your phone with the device for real-time control.',
     ),
     _OnboardingPage(
-      icon: Icons.thermostat_outlined,
+      icon: Icons.tune,
       iconColor: Color(0xFFF97316),
-      iconBgColor: Color(0xFFFFEDD5),
+      iconBgColor: Color(0xFFFFF7ED),
       title: 'Control & Monitor',
       subtitle: 'Set your target temperature and schedule heating slots effortlessly.',
     ),
@@ -57,19 +57,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        curve: Curves.easeOut,
       );
     } else {
       _finish();
-    }
-  }
-
-  void _prev() {
-    if (_currentPage > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
     }
   }
 
@@ -84,121 +75,154 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isLast = _currentPage == _pages.length - 1;
 
     return PopScope(
-      canPop: false, // prevent back navigation
+      canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFF),
+        backgroundColor: const Color(0xFFFFFFFF),
         body: SafeArea(
-          child: Column(
-            children: [
-              // Skip button
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: TextButton(
-                    onPressed: isLast ? null : _finish,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                // 1. Top Bar (Skip)
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: isLast ? null : _finish,
+                      child: Text(
+                        isLast ? '' : 'Skip',
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ── Swipeable Content ──
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (i) => setState(() => _currentPage = i),
+                    itemCount: _pages.length,
+                    itemBuilder: (_, i) {
+                      final page = _pages[i];
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Spacer(flex: 2),
+                          // 5. Illustration Area
+                          Container(
+                            height: 240,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: page.iconBgColor,
+                              borderRadius: BorderRadius.circular(24),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  page.iconBgColor,
+                                  page.iconBgColor.withValues(alpha: 0.5),
+                                ],
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(page.icon, size: 100, color: page.iconColor),
+                            ),
+                          ),
+                          const SizedBox(height: 24), // Spacer (24px)
+                          
+                          // 3. Title
+                          Text(
+                            page.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                          const SizedBox(height: 12), // Spacer (12px)
+                          
+                          // 3. Subtitle
+                          Text(
+                            page.subtitle,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF6B7280),
+                              height: 1.4,
+                            ),
+                          ),
+                          const Spacer(flex: 3),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+
+                // 6. Page Indicator (Dots)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_pages.length, (i) {
+                    final active = i == _currentPage;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: active ? 20 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: active ? const Color(0xFF3B82F6) : const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 16), // Spacer (16px)
+
+                // 7. Button Row
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _next,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
                     child: Text(
-                      isLast ? '' : 'Skip',
+                      isLast ? 'Get Started' : 'Next',
                       style: const TextStyle(
-                        color: Color(0xFF64748B),
+                        fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // Page content
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: (i) => setState(() => _currentPage = i),
-                  itemCount: _pages.length,
-                  itemBuilder: (_, i) => _PageContent(page: _pages[i]),
-                ),
-              ),
-
-              // Dot indicators
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_pages.length, (i) {
-                  final active = i == _currentPage;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: active ? 24 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? const Color(0xFF3B82F6)
-                          : const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Navigation buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    // Prev button
-                    if (_currentPage > 0)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _prev,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: const BorderSide(color: Color(0xFF3B82F6)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text('Previous',
-                              style: TextStyle(color: Color(0xFF3B82F6))),
-                        ),
-                      ),
-                    if (_currentPage > 0) const SizedBox(width: 12),
-
-                    // Next / Get Started button
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: _next,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          isLast ? 'Get Started' : 'Next',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 16), // Spacer (16px bottom)
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-
-// ── Single page data ──────────────────────────────────────────────────────────
 
 class _OnboardingPage {
   final IconData icon;
@@ -214,53 +238,4 @@ class _OnboardingPage {
     required this.title,
     required this.subtitle,
   });
-}
-
-// ── Page content widget ───────────────────────────────────────────────────────
-
-class _PageContent extends StatelessWidget {
-  final _OnboardingPage page;
-  const _PageContent({required this.page});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: page.iconBgColor,
-              borderRadius: BorderRadius.circular(32),
-            ),
-            child: Icon(page.icon, size: 60, color: page.iconColor),
-          ),
-          const SizedBox(height: 40),
-          Text(
-            page.title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            page.subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 15,
-              color: Color(0xFF64748B),
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+}

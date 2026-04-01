@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../services/bluetooth_service.dart';
 
 class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const MainAppBar({super.key});
+  final String title;
+
+  const MainAppBar({super.key, this.title = 'Nuetech Controller'});
 
   @override
   Widget build(BuildContext context) {
@@ -13,16 +15,13 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
          icon: const Icon(Icons.menu, size: 28, color: Color(0xFF0F172A)), // Slate 900
          onPressed: () => Scaffold.of(context).openDrawer(),
       ),
-      title: RichText(
-        text: const TextSpan(
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-          children: [
-            TextSpan(text: 'Test App Controller', style: TextStyle(color: Color(0xFF0F172A))), // Slate 900
-          ],
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+          color: Color(0xFF0F172A), // Slate 900
         ),
       ),
       centerTitle: true,

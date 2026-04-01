@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
 import '../models/device_model.dart';
 import '../services/database_helper.dart';
 
@@ -10,14 +10,15 @@ import '../services/database_helper.dart';
 class DeepLinkHandler {
   DeepLinkHandler._();
 
-  static StreamSubscription<Uri?>? _sub;
+  static StreamSubscription<Uri>? _sub;
+  static final AppLinks _appLinks = AppLinks();
 
   /// Initialize deep link listening.
   /// [context] must be a [BuildContext] that can show a SnackBar.
   static Future<void> init(BuildContext context) async {
     // ── Cold start: app opened via deep link ─────────────────────────────
     try {
-      final Uri? initialUri = await getInitialUri();
+      final Uri? initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
         await _handleUri(initialUri, context);
       }
@@ -26,9 +27,9 @@ class DeepLinkHandler {
     }
 
     // ── Hot link: app already running, new link arrives ───────────────────
-    _sub = uriLinkStream.listen(
-      (Uri? uri) async {
-        if (uri != null) await _handleUri(uri, context);
+    _sub = _appLinks.uriLinkStream.listen(
+      (Uri uri) async {
+        await _handleUri(uri, context);
       },
       onError: (e) => debugPrint('DeepLinkHandler stream error: $e'),
     );
@@ -70,7 +71,7 @@ class DeepLinkHandler {
       addedAt:      DateTime.now().toIso8601String(),
     );
 
-    final inserted = await DatabaseHelper().insertDevice(device);
+    final inserted = await DatabaseHelper().addDevice(device);
 
     if (!context.mounted) return;
 

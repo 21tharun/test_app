@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/device_model.dart';
 import '../services/database_helper.dart';
@@ -130,6 +131,10 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     if (!mounted) return;
 
     if (inserted) {
+      // Mark device as added for app routing
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('deviceAdded', true);
+      if (!mounted) return;
       _showSuccess(device);
     } else {
       // Duplicate device

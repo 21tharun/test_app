@@ -1,0 +1,22 @@
+﻿Analyzing test_app...                                           
+
+   info - Unnecessary 'const' keyword - lib\screens\contact_screen.dart:71:42 - unnecessary_const
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\my_device_screen.dart:183:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\my_device_screen.dart:254:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\my_device_screen.dart:268:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\qr_scanner_screen.dart:284:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\qr_scanner_screen.dart:342:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\saved_devices_screen.dart:148:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\saved_devices_screen.dart:166:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\saved_devices_screen.dart:251:50 - deprecated_member_use
+   info - The constant name 'MIN_SLOT_DURATION' isn't a lowerCamelCase identifier - lib\screens\temperature_control_screen.dart:37:20 - constant_identifier_names
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:737:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:745:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:750:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:988:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:990:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:1047:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\temperature_control_screen.dart:1049:7 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\services\deep_link_handler.dart:22:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\services\deep_link_handler.dart:31:48 - use_build_context_synchronously
+

@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/bluetooth_service.dart';
 import '../services/database_helper.dart';
-import '../models/device_model.dart';
 import '../widgets/main_app_bar.dart';
-import '../widgets/app_drawer.dart';
+import 'app_drawer.dart';
 import '../widgets/time_picker_wheel.dart';
 import 'bluetooth_connection_screen.dart';
 
