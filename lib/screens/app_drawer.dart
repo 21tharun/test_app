@@ -10,10 +10,10 @@ class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
   Future<void> _launchPrivacyPolicy() async {
-    final Uri url = Uri.parse('https://docs.google.com/document/d/1XW_1yq9yidpXREdD-FqW3e7vT3_6A7E8/view');
+    final Uri url = Uri.parse('https://21tharun.github.io/nuetech-privacy-policy/');
     try {
-      if (!await launchUrl(url, mode: LaunchMode.platformDefault)) {
-        debugPrint('Could not launch $url');
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        debugPrint('Could not launch privacy policy');
       }
     } catch (e) {
       debugPrint('Error launching URL: $e');

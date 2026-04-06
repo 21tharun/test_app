@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../widgets/main_app_bar.dart';
 import 'app_drawer.dart';
 
@@ -77,42 +76,7 @@ class AboutScreen extends StatelessWidget {
                         ),
                         textAlign: TextAlign.justify,
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24.0),
-                        child: Divider(color: Color(0xFFE2E8F0), thickness: 1),
-                      ),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () async {
-                            final url = Uri.parse('https://21tharun.github.io/nuetech-privacy-policy/');
-                            
-                            // Show toast/snackbar
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Opening privacy policy in browser...'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-
-                            if (await canLaunchUrl(url)) {
-                              await launchUrl(url, mode: LaunchMode.externalApplication);
-                            }
-                          },
-                          icon: const Icon(Icons.privacy_tip_outlined, size: 20),
-                          label: const Text(
-                            'View Privacy Policy ↗',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF2563EB),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
                       const Center(
                         child: Text(
                           'Test Version: No personal data sharing.',
