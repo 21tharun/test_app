@@ -7,7 +7,8 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart' as fbs;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
-enum BleConnectionStatus { idle, connecting, connected, failed, disconnected }
+enum BleConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
+enum SyncStatus { IDLE, SYNCING, SUCCESS, FAILED }
 
 /// Data class returned by the SYNC command.
 class SyncData {
@@ -56,10 +57,15 @@ class BleService {
   /// Notifies the UI when new SYNC data is received.
   final ValueNotifier<SyncData?> syncData = ValueNotifier<SyncData?>(null);
 
-  final ValueNotifier<BleConnectionStatus> connectionStatus =
-      ValueNotifier<BleConnectionStatus>(BleConnectionStatus.idle);
+  final ValueNotifier<BleConnectionState> connectionStatus =
+      ValueNotifier<BleConnectionState>(BleConnectionState.DISCONNECTED);
+  
+  final ValueNotifier<SyncStatus> syncStatus =
+      ValueNotifier<SyncStatus>(SyncStatus.IDLE);
+
   final ValueNotifier<String?> connectedDeviceName =
       ValueNotifier<String?>(null);
+
   final ValueNotifier<String?> connectedDeviceAddress =
       ValueNotifier<String?>(null);
 
@@ -266,7 +272,7 @@ class BleService {
   // ── BLE connection ────────────────────────────────────────────────────────
 
   Future<void> connectToDevice(fbp.BluetoothDevice device) async {
-    connectionStatus.value = BleConnectionStatus.connecting;
+    connectionStatus.value = BleConnectionState.CONNECTING;
     try {
       await device.connect(timeout: const Duration(seconds: 10));
       _connectedBleDevice = device;
@@ -275,15 +281,16 @@ class BleService {
           : 'Unknown Device';
       connectedDeviceName.value = name;
       connectedDeviceAddress.value = device.remoteId.str;
-      connectionStatus.value = BleConnectionStatus.connected;
+      connectionStatus.value = BleConnectionState.CONNECTED;
 
       await _bleConnSub?.cancel();
       _bleConnSub = device.connectionState.listen((state) {
         if (state == fbp.BluetoothConnectionState.disconnected) {
-          connectionStatus.value = BleConnectionStatus.disconnected;
+          connectionStatus.value = BleConnectionState.DISCONNECTED;
           connectedDeviceName.value = null;
           connectedDeviceAddress.value = null;
           _connectedBleDevice = null;
+          syncStatus.value = SyncStatus.IDLE;
         }
       });
 
@@ -297,21 +304,25 @@ class BleService {
             await c.setNotifyValue(true);
             await _bleDataSub?.cancel();
             _bleDataSub = c.onValueReceived.listen((data) {
-              buffer.write(utf8.decode(data, allowMalformed: true));
+              final contentReceived = utf8.decode(data, allowMalformed: true);
+              buffer.write(contentReceived);
               final content = buffer.toString().trim();
               if (content.split('"').length >= 11) {
                 processIncomingData(content);
                 buffer.clear();
               }
             });
-            // Just attach to the first notify characteristic found
             break;
           }
         }
       }
+      
+      // Automatic initial sync after connection
+      await initialSync();
+      
     } catch (e) {
       debugPrint('BLE connect failed – $e');
-      connectionStatus.value = BleConnectionStatus.failed;
+      connectionStatus.value = BleConnectionState.DISCONNECTED;
       connectedDeviceName.value = null;
       connectedDeviceAddress.value = null;
     }
@@ -320,14 +331,14 @@ class BleService {
   // ── Classic connection ────────────────────────────────────────────────────
 
   Future<void> connectClassicDevice(String address, String name) async {
-    connectionStatus.value = BleConnectionStatus.connecting;
+    connectionStatus.value = BleConnectionState.CONNECTING;
     try {
       _classicConnection =
           await fbs.BluetoothConnection.toAddress(address);
       connectedDeviceName.value =
           name.isNotEmpty ? name : 'Unknown Device';
       connectedDeviceAddress.value = address;
-      connectionStatus.value = BleConnectionStatus.connected;
+      connectionStatus.value = BleConnectionState.CONNECTED;
 
       // ── Set up persistent Classic listener ────────────────────────────────
       final buffer = StringBuffer();
@@ -341,17 +352,22 @@ class BleService {
           }
         },
         onDone: () {
-          if (connectionStatus.value == BleConnectionStatus.connected) {
-            connectionStatus.value = BleConnectionStatus.disconnected;
+          if (connectionStatus.value == BleConnectionState.CONNECTED) {
+            connectionStatus.value = BleConnectionState.DISCONNECTED;
             connectedDeviceName.value = null;
             connectedDeviceAddress.value = null;
             _classicConnection = null;
+            syncStatus.value = SyncStatus.IDLE;
           }
         },
       );
+      
+      // Automatic initial sync after connection
+      await initialSync();
+      
     } catch (e) {
       debugPrint('Classic connect failed – $e');
-      connectionStatus.value = BleConnectionStatus.failed;
+      connectionStatus.value = BleConnectionState.DISCONNECTED;
       connectedDeviceName.value = null;
       connectedDeviceAddress.value = null;
     }
@@ -374,7 +390,8 @@ class BleService {
 
     connectedDeviceName.value = null;
     connectedDeviceAddress.value = null;
-    connectionStatus.value = BleConnectionStatus.idle;
+    connectionStatus.value = BleConnectionState.DISCONNECTED;
+    syncStatus.value = SyncStatus.IDLE;
   }
 
   // ── Send command ──────────────────────────────────────────────────────────
@@ -382,12 +399,18 @@ class BleService {
   /// Send a string command (e.g. "ST=25") over the active connection.
   /// Returns null on success, error string on failure.
   Future<String?> sendCommand(String command) async {
+    final isSync = command == 'SYNC';
+    
     // ── Try Classic first ──────────────────────────────────────────────
     if (_classicConnection != null && _classicConnection!.isConnected) {
       try {
         _classicConnection!.output.add(
             Uint8List.fromList(utf8.encode('$command\n')));
         await _classicConnection!.output.allSent;
+        if (!isSync) {
+          // Background sync after SET command
+          unawaited(sendSyncCommand());
+        }
         return null;
       } catch (e) {
         debugPrint('Classic send failed: $e');
@@ -404,6 +427,10 @@ class BleService {
             if (c.properties.write || c.properties.writeWithoutResponse) {
               await c.write(utf8.encode('$command\n'),
                   withoutResponse: c.properties.writeWithoutResponse);
+              if (!isSync) {
+                // Background sync after SET command
+                unawaited(sendSyncCommand());
+              }
               return null;
             }
           }
@@ -474,27 +501,55 @@ class BleService {
 
   // ── SYNC command ──────────────────────────────────────────────────────────
 
+  /// Initial sync automatically called on connection.
+  Future<void> initialSync() async {
+    try {
+      await sendSyncCommand();
+    } catch (e) {
+      debugPrint('Initial sync failed: $e');
+      // Failure handled by UI observing syncStatus
+    }
+  }
+
   /// Sends "SYNC" to the ESP32 and waits for the listener to pick up new data.
   Future<void> sendSyncCommand() async {
-    final error = await sendCommand('SYNC');
-    if (error != null) {
-      throw error;
-    }
-
-    final completer = Completer<void>();
-    void listener() {
-      if (!completer.isCompleted) completer.complete();
-    }
+    if (syncStatus.value == SyncStatus.SYNCING) return;
     
-    syncData.addListener(listener);
+    syncStatus.value = SyncStatus.SYNCING;
+    
     try {
-      await completer.future.timeout(const Duration(seconds: 5));
-    } on TimeoutException {
-      throw 'Sync timeout. No response received.';
+      final error = await sendCommand('SYNC');
+      if (error != null) throw error;
+
+      final completer = Completer<void>();
+      void listener() {
+        if (!completer.isCompleted) completer.complete();
+      }
+      
+      syncData.addListener(listener);
+      try {
+        await completer.future.timeout(const Duration(seconds: 5));
+        syncStatus.value = SyncStatus.SUCCESS;
+        // Briefly keep success state, then revert to idle if needed (though UI handles mapped logic)
+        unawaited(Future.delayed(const Duration(seconds: 2), () {
+          if (syncStatus.value == SyncStatus.SUCCESS) {
+            syncStatus.value = SyncStatus.IDLE;
+          }
+        }));
+      } on TimeoutException {
+        syncStatus.value = SyncStatus.FAILED;
+        throw 'Sync timeout. No response received.';
+      } catch (e) {
+        syncStatus.value = SyncStatus.FAILED;
+        throw e.toString();
+      } finally {
+        syncData.removeListener(listener);
+      }
     } catch (e) {
-      throw e.toString();
-    } finally {
-      syncData.removeListener(listener);
+      syncStatus.value = SyncStatus.FAILED;
+      rethrow;
     }
   }
 }
+
+

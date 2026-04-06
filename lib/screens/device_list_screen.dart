@@ -55,7 +55,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
   void _onConnectionChanged() {
     final s = _ble.connectionStatus.value;
-    if (s == BleConnectionStatus.connected) {
+    if (s == BleConnectionState.CONNECTED) {
       _ble.stopScan();
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -64,7 +64,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
           ),
         );
       }
-    } else if (s == BleConnectionStatus.failed) {
+    } else if (s == BleConnectionState.DISCONNECTED) {
       if (mounted) {
         setState(() => _connectingId = null);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -456,3 +456,5 @@ class _EmptyHint extends StatelessWidget {
     );
   }
 }
+
+

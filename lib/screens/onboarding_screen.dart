@@ -239,3 +239,4 @@ class _OnboardingPage {
     required this.subtitle,
   });
 }
+

@@ -36,48 +36,18 @@ class _BluetoothConnectionScreenState
   void _onConnectionChanged() {
     final status = BleService.instance.connectionStatus.value;
 
-    if (status == BleConnectionStatus.connected) {
+    if (status == BleConnectionState.CONNECTED) {
       BleService.instance.stopScan();
 
-      if (widget.redirectToController) {
-        // Coming from controller flow → auto navigate to controller
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => const TemperatureControlScreen(),
-            ),
-          );
-        }
-      } else {
-        // Opened manually from drawer → just show snackbar + optional button
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white, size: 18),
-                  SizedBox(width: 10),
-                  Text('Device connected successfully!'),
-                ],
-              ),
-              backgroundColor: Colors.green.shade700,
-              behavior: SnackBarBehavior.floating,
-              action: SnackBarAction(
-                label: 'Go to Controller',
-                textColor: Colors.white,
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => const TemperatureControlScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          );
-        }
+      // Always auto-navigate to controller upon connection
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const TemperatureControlScreen(),
+          ),
+        );
       }
-    } else if (status == BleConnectionStatus.failed) {
+    } else if (status == BleConnectionState.DISCONNECTED) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('Connection failed. Please try again.'),
@@ -124,10 +94,10 @@ class _BluetoothConnectionScreenState
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: ValueListenableBuilder<BleConnectionStatus>(
+          child: ValueListenableBuilder<BleConnectionState>(
             valueListenable: ble.connectionStatus,
             builder: (_, status, __) {
-              final isConnected = status == BleConnectionStatus.connected;
+              final isConnected = status == BleConnectionState.CONNECTED;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -357,3 +327,4 @@ class _BluetoothConnectionScreenState
     );
   }
 }
+

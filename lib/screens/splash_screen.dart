@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _navigate() {
     final ble = BleService.instance;
-    final isConnected = ble.connectionStatus.value == BleConnectionStatus.connected;
+    final isConnected = ble.connectionStatus.value == BleConnectionState.CONNECTED;
 
     Navigator.of(context).pushReplacementNamed(
       isConnected ? '/temperature_control' : '/bluetooth_connect',
@@ -54,3 +54,5 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
+
+

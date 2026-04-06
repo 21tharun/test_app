@@ -26,51 +26,81 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       centerTitle: true,
       actions: [
-        ValueListenableBuilder<BleConnectionStatus>(
+        ValueListenableBuilder<BleConnectionState>(
           valueListenable: BleService.instance.connectionStatus,
-          builder: (_, status, __) {
-            final isConnected = status == BleConnectionStatus.connected;
-            return Center(
-              child: Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isConnected ? const Color(0xFFD1FAE5) : const Color(0xFFF1F5F9), // Light Green / Slate 100
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isConnected ? const Color(0xFF34D399).withValues(alpha: 0.5) : const Color(0xFFCBD5E1).withValues(alpha: 0.5),
+          builder: (_, connStatus, __) {
+            return ValueListenableBuilder<SyncStatus>(
+              valueListenable: BleService.instance.syncStatus,
+              builder: (_, syncStatus, __) {
+                final isOffline = connStatus == BleConnectionState.DISCONNECTED;
+                final isSyncing = syncStatus == SyncStatus.SYNCING;
+                final isUpdated = syncStatus == SyncStatus.SUCCESS;
+
+                String statusText;
+                Color statusColor;
+                Color bubbleColor;
+
+                if (isOffline) {
+                  statusText = 'Device Offline';
+                  statusColor = const Color(0xFF6B7280);
+                  bubbleColor = const Color(0xFFF1F5F9);
+                } else if (isSyncing) {
+                  statusText = 'Syncing';
+                  statusColor = const Color(0xFF3B82F6);
+                  bubbleColor = const Color(0xFFDBEAFE);
+                } else if (isUpdated) {
+                  statusText = 'Updated';
+                  statusColor = const Color(0xFF10B981);
+                  bubbleColor = const Color(0xFFD1FAE5);
+                } else {
+                  statusText = 'Device Online';
+                  statusColor = const Color(0xFF10B981);
+                  bubbleColor = const Color(0xFFD1FAE5);
+                }
+
+                return Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: bubbleColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                            boxShadow: !isOffline ? [
+                              BoxShadow(
+                                color: statusColor.withValues(alpha: 0.6),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              )
+                            ] : null,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isConnected ? const Color(0xFF10B981) : const Color(0xFF6B7280),
-                        shape: BoxShape.circle,
-                        boxShadow: isConnected ? [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.6),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          )
-                        ] : null,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isConnected ? 'Live' : 'Offline',
-                      style: TextStyle(
-                        color: isConnected ? const Color(0xFF10B981) : const Color(0xFF6B7280),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                );
+              },
             );
           },
         ),
@@ -81,3 +111,5 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
+
+

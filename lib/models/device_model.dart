@@ -48,3 +48,4 @@ class DeviceModel {
     return 'DeviceModel(serialNumber: $serialNumber, productId: $productId, name: $name, addedAt: $addedAt)';
   }
 }
+

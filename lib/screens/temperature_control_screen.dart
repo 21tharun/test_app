@@ -16,7 +16,8 @@ class TemperatureControlScreen extends StatefulWidget {
       _TemperatureControlScreenState();
 }
 
-class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
+class _TemperatureControlScreenState extends State<TemperatureControlScreen>
+    with SingleTickerProviderStateMixin {
   final BleService _ble = BleService.instance;
 
   double _temperature = 25;
@@ -25,6 +26,9 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
   bool _isSliding = false;
   bool _isEditingSlot1 = false;
   bool _isEditingSlot2 = false;
+
+  late final AnimationController _glowController;
+  late final Animation<double> _glowAnimation;
 
   // Dynamic title from stored device
   String _deviceTitle = 'Nuetech Controller';
@@ -44,8 +48,15 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
   void initState() {
     super.initState();
     _ble.syncData.addListener(_onSyncDataUpdated);
+    _ble.syncStatus.addListener(_onSyncStatusUpdated);
     _loadDeviceTitle();
     _checkBluetoothOnOpen();
+
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _glowAnimation = CurvedAnimation(parent: _glowController, curve: Curves.linear);
 
     final initialData = _ble.syncData.value;
     if (initialData != null) {
@@ -56,6 +67,8 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
   @override
   void dispose() {
     _ble.syncData.removeListener(_onSyncDataUpdated);
+    _ble.syncStatus.removeListener(_onSyncStatusUpdated);
+    _glowController.dispose();
     super.dispose();
   }
 
@@ -76,7 +89,7 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
   void _checkBluetoothOnOpen() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final connected =
-          _ble.connectionStatus.value == BleConnectionStatus.connected;
+          _ble.connectionStatus.value == BleConnectionState.CONNECTED;
       if (!connected && mounted) {
         _showNotConnectedDialog();
       }
@@ -163,6 +176,46 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
     }
   }
 
+  void _onSyncStatusUpdated() {
+    if (_ble.syncStatus.value == SyncStatus.SUCCESS) {
+      _glowController.forward(from: 0.0);
+    } else if (_ble.syncStatus.value == SyncStatus.FAILED) {
+      _showSyncFailedDialog();
+    }
+  }
+
+  void _showSyncFailedDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sync Failed', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Could not sync with device. Please check connection and try again.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _ble.sendSyncCommand().catchError((e) {
+                // Error already handled by notification
+              });
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _validateSlots() {
     setState(() {
       _s1Error = null;
@@ -230,23 +283,6 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
     );
   }
 
-  Future<void> _sync() async {
-    setState(() => _syncing = true);
-    try {
-      await _ble.sendSyncCommand();
-      if (mounted) {
-        setState(() => _syncing = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Device Synced ✓'),
-            backgroundColor: Colors.green));
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() => _syncing = false);
-        _showCenterAlert(error.toString(), false);
-      }
-    }
-  }
 
   Future<void> _setTemperature() async {
     setState(() => _settingTemp = true);
@@ -283,6 +319,26 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
     return 'Very Hot';
   }
 
+  Animation<double> get _glowOpacity => TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.35), weight: 50),
+        TweenSequenceItem(tween: Tween(begin: 0.35, end: 0.0), weight: 50),
+      ]).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
+
+  Animation<double> get _glowBorder => TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 2.0), weight: 50),
+        TweenSequenceItem(tween: Tween(begin: 2.0, end: 1.0), weight: 50),
+      ]).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
+
+  Animation<double> get _glowSpread => TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 0.0, end: 6.0), weight: 50),
+        TweenSequenceItem(tween: Tween(begin: 6.0, end: 0.0), weight: 50),
+      ]).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
+
+  Animation<double> get _glowBlur => TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 6.0, end: 14.0), weight: 50),
+        TweenSequenceItem(tween: Tween(begin: 14.0, end: 6.0), weight: 50),
+      ]).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -293,7 +349,7 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
           valueListenable: _ble.syncData,
           builder: (context, syncData, child) {
             final connected = _ble.connectionStatus.value ==
-                BleConnectionStatus.connected;
+                BleConnectionState.CONNECTED;
             final displayTank = syncData?.tankTemp ?? '--';
             final displayCoil = syncData?.coilStatus ?? -1;
 
@@ -304,17 +360,44 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // ── Upper Card: Temperature Control ──────────────────
-                  Card(
-                    margin: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  AnimatedBuilder(
+                    animation: _glowController,
+                    builder: (context, child) => Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value),
+                            blurRadius: _glowBlur.value,
+                            spreadRadius: _glowSpread.value,
+                          ),
+                        ],
+                      ),
+                      child: Card(
+                        margin: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value > 0 ? 0.8 : 0.0),
+                            width: _glowBorder.value,
+                          ),
+                        ),
+                        // Fallback edge color when not glowing
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: child,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                           Row(
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceBetween,
@@ -342,63 +425,6 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              ValueListenableBuilder<BleConnectionStatus>(
-                                valueListenable: _ble.connectionStatus,
-                                builder: (context, status, child) {
-                                  final connected = status ==
-                                      BleConnectionStatus.connected;
-                                  return SizedBox(
-                                    height: 36,
-                                    child: OutlinedButton.icon(
-                                      onPressed: (_syncing || !connected)
-                                          ? null
-                                          : _sync,
-                                      icon: _syncing
-                                          ? const SizedBox(
-                                              width: 14,
-                                              height: 14,
-                                              child:
-                                                  CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                      strokeWidth: 2))
-                                          : const Icon(Icons.sync,
-                                              color: Colors.white,
-                                              size: 16),
-                                      label: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          connected
-                                              ? 'Sync'
-                                              : 'Device Offline',
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        disabledBackgroundColor:
-                                            Colors.grey.shade400,
-                                        disabledForegroundColor:
-                                            Colors.white,
-                                        backgroundColor: connected
-                                            ? const Color(0xFF3B82F6)
-                                            : Colors.grey.shade400,
-                                        side: BorderSide(
-                                            color: connected
-                                                ? const Color(0xFF3B82F6)
-                                                : Colors.grey.shade400),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8)),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12),
-                                      ),
-                                    ),
-                                  );
-                                },
                               ),
                             ],
                           ),
@@ -429,17 +455,17 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                                         child: FittedBox(
                                           fit: BoxFit.scaleDown,
                                           alignment: Alignment.bottomLeft,
-                                          child: Text(
-                                            '${_temperature.round()}',
-                                            style:
-                                                GoogleFonts.jetBrainsMono(
-                                              fontSize: 84,
-                                              height: 1.0,
-                                              fontWeight: FontWeight.w400,
-                                              color:
-                                                  const Color(0xFF0F172A),
+                                            child: Text(
+                                              '${_temperature.round()}',
+                                              style:
+                                                  GoogleFonts.jetBrainsMono(
+                                                fontSize: 84,
+                                                height: 1.0,
+                                                fontWeight: FontWeight.w400,
+                                                color:
+                                                    const Color(0xFF0F172A),
+                                              ),
                                             ),
-                                          ),
                                         ),
                                       ),
                                     ),
@@ -567,41 +593,49 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius:
-                                          BorderRadius.circular(16),
-                                      border: Border.all(
-                                          color: const Color(0xFFE2E8F0)),
+                                  child: AnimatedBuilder(
+                                    animation: _glowController,
+                                    builder: (context, child) => Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value > 0 ? 0.8 : 0.0),
+                                          width: _glowBorder.value,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value),
+                                            blurRadius: _glowBlur.value,
+                                            spreadRadius: _glowSpread.value,
+                                          ),
+                                        ],
+                                      ),
+                                      foregroundDecoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: child,
                                     ),
                                     child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: const [
-                                            Icon(Icons.water_drop,
-                                                color: Color(0xFF6B7280),
-                                                size: 16),
+                                            Icon(Icons.water_drop, color: Color(0xFF6B7280), size: 16),
                                             SizedBox(width: 4),
                                             Flexible(
                                               child: FittedBox(
                                                 fit: BoxFit.scaleDown,
                                                 child: Text('TANK TEMP',
                                                     style: TextStyle(
-                                                        color: Color(
-                                                            0xFF6B7280),
+                                                        color: Color(0xFF6B7280),
                                                         fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        letterSpacing:
-                                                            0.5)),
+                                                        fontWeight: FontWeight.bold,
+                                                        letterSpacing: 0.5)),
                                               ),
                                             ),
                                           ],
@@ -611,13 +645,10 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                                           fit: BoxFit.scaleDown,
                                           child: Text('$displayTank °C',
                                               textAlign: TextAlign.center,
-                                              style:
-                                                  GoogleFonts.jetBrainsMono(
-                                                      color: const Color(
-                                                          0xFF0F172A),
-                                                      fontSize: 24,
-                                                      fontWeight:
-                                                          FontWeight.w500)),
+                                              style: GoogleFonts.jetBrainsMono(
+                                                  color: const Color(0xFF0F172A),
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.w500)),
                                         ),
                                       ],
                                     ),
@@ -625,41 +656,49 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius:
-                                          BorderRadius.circular(16),
-                                      border: Border.all(
-                                          color: const Color(0xFFE2E8F0)),
+                                  child: AnimatedBuilder(
+                                    animation: _glowController,
+                                    builder: (context, child) => Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value > 0 ? 0.8 : 0.0),
+                                          width: _glowBorder.value,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value),
+                                            blurRadius: _glowBlur.value,
+                                            spreadRadius: _glowSpread.value,
+                                          ),
+                                        ],
+                                      ),
+                                      foregroundDecoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: child,
                                     ),
                                     child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: const [
-                                            Icon(Icons.adjust,
-                                                color: Color(0xFF6B7280),
-                                                size: 16),
+                                            Icon(Icons.adjust, color: Color(0xFF6B7280), size: 16),
                                             SizedBox(width: 4),
                                             Flexible(
                                               child: FittedBox(
                                                 fit: BoxFit.scaleDown,
                                                 child: Text('COIL STATUS',
                                                     style: TextStyle(
-                                                        color: Color(
-                                                            0xFF6B7280),
+                                                        color: Color(0xFF6B7280),
                                                         fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        letterSpacing:
-                                                            0.5)),
+                                                        fontWeight: FontWeight.bold,
+                                                        letterSpacing: 0.5)),
                                               ),
                                             ),
                                           ],
@@ -676,15 +715,12 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                                                         ? 'Error'
                                                         : '--',
                                             textAlign: TextAlign.center,
-                                            style:
-                                                GoogleFonts.jetBrainsMono(
+                                            style: GoogleFonts.jetBrainsMono(
                                               color: displayCoil == 1
                                                   ? const Color(0xFF10B981)
                                                   : displayCoil == 2
-                                                      ? const Color(
-                                                          0xFFEF4444)
-                                                      : const Color(
-                                                          0xFF6B7280),
+                                                      ? const Color(0xFFEF4444)
+                                                      : const Color(0xFF6B7280),
                                               fontSize: 24,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -697,8 +733,7 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -839,67 +874,92 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.bold)),
         ),
-        Card(
-          margin: EdgeInsets.zero,
-          elevation: 1,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFF1F5F9)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 12.0, vertical: 16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      _buildTimeSelector(
-                          label: 'START',
-                          slot: slot,
-                          isStart: true,
-                          time: start,
-                          onTap: onStartTap),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4.0),
-                        child: Icon(Icons.arrow_forward,
-                            size: 16, color: Color(0xFF94A3B8)),
-                      ),
-                      _buildTimeSelector(
-                          label: 'END',
-                          slot: slot,
-                          isStart: false,
-                          time: end,
-                          onTap: onEndTap),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 72,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: (enabled && isValid) ? onSet : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFFE2E8F0),
-                      disabledForegroundColor: const Color(0xFF94A3B8),
-                      elevation: (enabled && isValid) ? 2 : 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: const Text('SET',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            letterSpacing: 0.5)),
-                  ),
+        AnimatedBuilder(
+          animation: _glowController,
+          builder: (context, child) => Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value),
+                  blurRadius: _glowBlur.value,
+                  spreadRadius: _glowSpread.value,
                 ),
               ],
             ),
+            child: Card(
+              margin: EdgeInsets.zero,
+              elevation: 1,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: const Color(0xFF3B82F6).withValues(alpha: _glowOpacity.value > 0 ? 0.8 : 0.0),
+                  width: _glowBorder.value,
+                ),
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12.0, vertical: 16.0),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildTimeSelector(
+                        label: 'START',
+                        slot: slot,
+                        isStart: true,
+                        time: start,
+                        onTap: onStartTap),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Icon(Icons.arrow_forward,
+                          size: 16, color: Color(0xFF94A3B8)),
+                    ),
+                    _buildTimeSelector(
+                        label: 'END',
+                        slot: slot,
+                        isStart: false,
+                        time: end,
+                        onTap: onEndTap),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 72,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: (enabled && isValid) ? onSet : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                    disabledForegroundColor: const Color(0xFF94A3B8),
+                    elevation: (enabled && isValid) ? 2 : 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Text('SET',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          letterSpacing: 0.5)),
+                ),
+              ),
+            ],
           ),
         ),
         if (error != null)

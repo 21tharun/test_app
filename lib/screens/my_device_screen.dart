@@ -406,3 +406,4 @@ class _InfoTile extends StatelessWidget {
     );
   }
 }
+

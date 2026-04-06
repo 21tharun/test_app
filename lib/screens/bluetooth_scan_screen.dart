@@ -33,26 +33,19 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
     Color? color;
 
     switch (status) {
-      case BleConnectionStatus.connecting:
+      case BleConnectionState.CONNECTING:
         message = 'Connecting…';
         color = Colors.blue.shade700;
         break;
-      case BleConnectionStatus.connected:
+      case BleConnectionState.CONNECTED:
         message = '✓ Connected successfully';
         color = Colors.green.shade700;
         if (mounted) setState(() => _connectingDeviceId = null);
         break;
-      case BleConnectionStatus.failed:
-        message = '✗ Connection failed. Try again.';
+      case BleConnectionState.DISCONNECTED:
+        message = '✗ Connection failed or disconnected';
         color = Colors.red.shade700;
         if (mounted) setState(() => _connectingDeviceId = null);
-        break;
-      case BleConnectionStatus.disconnected:
-        message = 'Device disconnected';
-        color = Colors.orange.shade700;
-        if (mounted) setState(() => _connectingDeviceId = null);
-        break;
-      case BleConnectionStatus.idle:
         break;
     }
 
@@ -241,3 +234,5 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
     );
   }
 }
+
+
