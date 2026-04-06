@@ -149,9 +149,20 @@ class BleService {
 
   // ── Paired / bonded devices ───────────────────────────────────────────────
 
+  // Filter paired Bluetooth devices to include only Nuetech devices
   Future<List<fbs.BluetoothDevice>> getClassicPairedDevices() async {
     try {
-      return await fbs.FlutterBluetoothSerial.instance.getBondedDevices();
+      final bonded = await fbs.FlutterBluetoothSerial.instance.getBondedDevices();
+      
+      // Filter the bonded list to ensure only Nuetech-branded devices are shown in the UI
+      return bonded.where((device) {
+        final name = (device.name ?? "").toLowerCase();
+        
+        // Include only valid Nuetech devices: exclude nameless, generic, or non-matching names
+        return name.isNotEmpty && 
+               name != "unknown device" && 
+               name.startsWith("nuetech");
+      }).toList();
     } catch (e) {
       debugPrint('BleService: getClassicPairedDevices error – $e');
       return [];
@@ -173,15 +184,28 @@ class BleService {
     scanResults.value = [];
 
     await _scanSub?.cancel();
+    // Start BLE scan to discover nearby devices and process results in real-time
     _scanSub = fbp.FlutterBluePlus.onScanResults.listen((results) {
       final seen = <String>{};
-      final filtered = <fbp.ScanResult>[];
+      final filteredResults = <fbp.ScanResult>[];
+      
       for (final r in results) {
-        if (r.rssi >= rssiThreshold && seen.add(r.device.remoteId.str)) {
-          filtered.add(r);
+        // Extract device name safely
+        final name = r.device.platformName.toLowerCase();
+        
+        // APPLY FILTER: This is a Nuetech-only device picker.
+        // We include only devices with the "nuetech" prefix to reduce UI noise.
+        final isNuetech = name.isNotEmpty && 
+                         name != "unknown device" && 
+                         name.startsWith("nuetech");
+
+        if (isNuetech && r.rssi >= rssiThreshold && seen.add(r.device.remoteId.str)) {
+          filteredResults.add(r);
         }
       }
-      scanResults.value = filtered;
+      
+      // Update global scanResults notifier with the filtered list
+      scanResults.value = filteredResults;
     });
 
     await _isScanSub?.cancel();
@@ -217,10 +241,20 @@ class BleService {
 
     try {
       await _discoverySub?.cancel();
+      // Start Classic Bluetooth discovery to find legacy devices
       _discoverySub = fbs.FlutterBluetoothSerial.instance
           .startDiscovery()
           .listen(
         (r) {
+          final name = (r.device.name ?? "").toLowerCase();
+          
+          // APPLY FILTER: Filter out any device that does not match the Nuetech brand identifier
+          final isNuetech = name.isNotEmpty && 
+                           name != "unknown device" && 
+                           name.startsWith("nuetech");
+          
+          if (!isNuetech) return;
+
           final list = List<fbs.BluetoothDiscoveryResult>.from(
               classicResults.value);
           final idx = list
@@ -230,6 +264,7 @@ class BleService {
           } else {
             list.add(r);
           }
+          // Update the reactive classicResults list used by the UI components
           classicResults.value = list;
         },
         onDone: () => isClassicDiscovering.value = false,

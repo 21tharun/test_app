@@ -112,16 +112,22 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
     }
   }
 
+  // Handle tapping on a BLE device to initiate connection process
   Future<void> _onBleDeviceTapped(fbp.ScanResult result) async {
     final device = result.device;
     final name = device.platformName.isNotEmpty
         ? device.platformName
-        : 'Unknown Device';
+        : 'Nuetech Device'; // Default for nameless devices that passed filter
+    
+    // Confirm connection with user before proceeding
     final confirmed =
         await _showConnectDialog(name, device.remoteId.str);
+    
     if (confirmed == true && mounted) {
       setState(() => _connectingId = device.remoteId.str);
+      // Ensure scanning is stopped to save battery and stabilize connection
       await _ble.stopScan();
+      // Execute the device-specific connection logic in the service
       await _ble.connectToDevice(device);
     }
   }
@@ -223,7 +229,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
           _SectionHeader(
               title: 'Paired Devices', count: _pairedDevices.length),
           if (_pairedDevices.isEmpty)
-            _EmptyHint('No paired devices found.')
+            _EmptyHint('No Nuetech devices found in paired list.\nMake sure your Nuetech device is powered on.')
           else
             ..._pairedDevices.map((d) => PairedDeviceTile(
                   device: d,
@@ -256,8 +262,8 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                       valueListenable: _ble.isClassicDiscovering,
                       builder: (_, scanning, __) => _EmptyHint(
                           scanning
-                              ? 'Discovering Classic devices…'
-                              : 'No Classic devices found.'),
+                              ? 'Discovering Nuetech devices…'
+                              : 'No Nuetech devices found nearby.\nMake sure your device is powered on.'),
                     )
                   else
                     ...nearby.map((r) => ClassicDeviceTile(
@@ -296,8 +302,8 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                       valueListenable: _ble.isScanning,
                       builder: (_, scanning, __) => _EmptyHint(
                           scanning
-                              ? 'Scanning for BLE devices…'
-                              : 'No BLE devices found (RSSI ≥ −80 dBm).'),
+                              ? 'Scanning for Nuetech BLE devices…'
+                              : 'No Nuetech devices found in range.\nPower on your device and keep it nearby.'),
                     )
                   else
                     ...nearby.map((r) => DeviceTile(
