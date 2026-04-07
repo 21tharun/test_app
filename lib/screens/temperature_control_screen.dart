@@ -179,7 +179,9 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen>
   void _onSyncStatusUpdated() {
     if (_ble.syncStatus.value == SyncStatus.SUCCESS) {
       _glowController.forward(from: 0.0);
-    } else if (_ble.syncStatus.value == SyncStatus.FAILED) {
+    } else if (_ble.syncStatus.value == SyncStatus.FAILED && !_settingTemp) {
+      // Only show general sync failure if we are NOT in a SET update flow
+      // as the SET flow handles its own specific retry logic.
       _showSyncFailedDialog();
     }
   }
@@ -285,17 +287,70 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen>
 
 
   Future<void> _setTemperature() async {
+    // 🚫 Prevent multiple simultaneous SET operations
+    if (_settingTemp || _ble.syncStatus.value == SyncStatus.SYNCING) return;
+
     setState(() => _settingTemp = true);
-    final command = 'ST=${_temperature.round()}';
-    final error = await _ble.sendCommand(command);
-    setState(() => _settingTemp = false);
-    if (mounted && error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('✗ $error'),
-        backgroundColor: Colors.red.shade700,
-        duration: const Duration(seconds: 3),
-      ));
+
+    try {
+      // Step 1: Send payload to device
+      final command = 'ST=${_temperature.round()}';
+      final error = await _ble.sendCommand(command);
+
+      if (error != null) {
+        _handleUpdateFailure("Send failed: $error", () => _setTemperature());
+        return;
+      }
+
+      // Step 2: App-controlled processing delay (FINAL 1.5s)
+      await Future.delayed(const Duration(milliseconds: 2500));
+
+      // Step 3: Trigger sync AFTER device finishes processing
+      try {
+        await _ble.sendSyncCommand();
+        // Step 4: Keep interaction locked during success feedback (aligned with flow)
+        await Future.delayed(const Duration(seconds: 2));
+      } catch (e) {
+        _handleUpdateFailure("Sync verification failed. Retry?", () => _setTemperature());
+      }
+    } finally {
+      if (mounted) setState(() => _settingTemp = false);
     }
+  }
+
+  void _handleUpdateFailure(String message, VoidCallback onRetry) {
+    if (!mounted) return;
+    
+    // Reset state since sync failed
+    setState(() => _settingTemp = false);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Device update failed', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onRetry();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color get _dynamicColor {
@@ -748,6 +803,9 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen>
   }
 
   Future<void> _setSlot(int slotNumber) async {
+    // 🚫 Prevent parallel slot updates or temp updates
+    if (_settingTemp || _ble.syncStatus.value == SyncStatus.SYNCING) return;
+
     _validateSlots();
     final isValid = slotNumber == 1 ? _isValidSlot1 : _isValidSlot2;
     if (!isValid) return;
@@ -761,30 +819,44 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen>
       return;
     }
 
-    final startStr =
-        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
-    final endStr =
-        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+    setState(() => _settingTemp = true);
 
-    final err1 = await _ble.sendCommand('S${slotNumber}S=$startStr');
-    if (err1 != null) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('✗ $err1'), backgroundColor: Colors.red));
-      return;
+    try {
+      final startStr =
+          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+      final endStr =
+          '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+
+      // Step 1: Send Start time
+      final err1 = await _ble.sendCommand('S${slotNumber}S=$startStr');
+      if (err1 != null) {
+        _handleUpdateFailure("Send failed: $err1", () => _setSlot(slotNumber));
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // Step 2: Send End time
+      final err2 = await _ble.sendCommand('S${slotNumber}E=$endStr');
+      if (err2 != null) {
+        _handleUpdateFailure("Send failed: $err2", () => _setSlot(slotNumber));
+        return;
+      }
+
+      // Step 3: App-controlled processing delay (FINAL 1.5s)
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      // Step 4: Trigger sync AFTER device finishes processing
+      try {
+        await _ble.sendSyncCommand();
+        // Step 5: Keep interaction locked during success feedback
+        await Future.delayed(const Duration(seconds: 2));
+      } catch (e) {
+        _handleUpdateFailure("Sync verification failed. Retry?", () => _setSlot(slotNumber));
+      }
+    } finally {
+      if (mounted) setState(() => _settingTemp = false);
     }
-    await Future.delayed(const Duration(milliseconds: 200));
-    final err2 = await _ble.sendCommand('S${slotNumber}E=$endStr');
-    if (err2 != null) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('✗ $err2'), backgroundColor: Colors.red));
-      return;
-    }
-    if (mounted)
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Slot $slotNumber updated successfully'),
-          backgroundColor: Colors.green));
   }
 
   Widget _buildSlotSchedulerSection(bool connected) {

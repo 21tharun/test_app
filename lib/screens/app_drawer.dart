@@ -10,11 +10,20 @@ class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
   Future<void> _launchPrivacyPolicy() async {
-    final Uri url = Uri.parse('https://21tharun.github.io/nuetech-privacy-policy/');
+    final Uri url =
+        Uri.parse('https://21tharun.github.io/nuetech-privacy-policy/');
     try {
-      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-        debugPrint('Could not launch privacy policy');
-      }
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+    }
+  }
+
+  Future<void> _launchTerms() async {
+    final Uri url =
+        Uri.parse('https://21tharun.github.io/nuetech-privacy-policy/');
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       debugPrint('Error launching URL: $e');
     }
@@ -152,29 +161,62 @@ class AppDrawer extends StatelessWidget {
                     );
                   },
                 ),
-
-                const SizedBox(height: 10),
-                _SectionHeader(title: 'LEGAL'),
-                _DrawerItem(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy Policy',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _launchPrivacyPolicy();
-                  },
-                ),
               ],
             ),
           ),
 
-          // ── Footer ────────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Text(
-              'Version 2.0.4',
-              style: TextStyle(
-                color: const Color(0xFF94A3B8),
-                fontSize: 12,
+          // ── Legal Footer (Paytm-style) ──────────────────────────────────
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: _launchPrivacyPolicy,
+                        child: const Text(
+                          'Privacy Policy',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          '•',
+                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _launchTerms,
+                        child: const Text(
+                          'Terms & Conditions',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'v1.0.0+1',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -196,8 +238,8 @@ class _SectionHeader extends StatelessWidget {
         title,
         style: TextStyle(
           color: const Color(0xFF64748B),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
           letterSpacing: 1.2,
         ),
       ),
@@ -228,10 +270,11 @@ class _DrawerItem extends StatelessWidget {
               color: Color(0xFF0F172A),
               fontSize: 17,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
             ),
           ),
           trailing: const Icon(Icons.chevron_right, color: Color(0xFF94A3B8), size: 20),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           onTap: onTap,
           hoverColor: const Color(0xFFF1F5F9),
         ),

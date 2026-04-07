@@ -169,105 +169,116 @@ class _BluetoothConnectionScreenState
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // ── Disconnect Button ─────────────────────────────────
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (isConnected) {
-                          ble.disconnectDevice();
-                          _showCenterAlert(
-                              context, 'Device Disconnected', true);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'No device connected to disconnect')),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.bluetooth_disabled, size: 20),
-                      label: const Text('Disconnect',
-                          style: TextStyle(fontSize: 16)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-
                   const SizedBox(height: 24),
 
-                  // ── Enable + Scan Buttons ─────────────────────────────
-                  Row(
+                  // ── Action Hierarchy Improvements ─────────────────────
+                  Column(
                     children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final error = await ble.enableBluetooth();
-                              if (context.mounted) {
-                                if (error == 'already_on') {
-                                  _showCenterAlert(context,
-                                      'Bluetooth is already on', true);
-                                } else {
-                                  _showCenterAlert(
-                                      context,
-                                      error ??
-                                          'Bluetooth enabled successfully',
-                                      error == null);
-                                }
-                              }
-                            },
-                            icon: const Icon(Icons.bluetooth, size: 20),
-                            label: const Text('Enable',
-                                style: TextStyle(fontSize: 16)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B82F6),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                              elevation: 0,
+                      // PRIMARY ACTION: SCAN
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const DeviceListScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.search, size: 20),
+                          label: const Text(
+                            'Scan for devices',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
                             ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B82F6),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const DeviceListScreen()),
-                              );
-                            },
-                            icon: const Icon(Icons.search,
-                                size: 20, color: Color(0xFF0F172A)),
-                            label: const Text('Scan',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    color: Color(0xFF0F172A))),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF1F5F9),
-                              foregroundColor: const Color(0xFF0F172A),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: const BorderSide(
-                                    color: Color(0xFFE2E8F0)),
+
+                      const SizedBox(height: 14),
+
+                      // SECONDARY ACTIONS: ENABLE & DISCONNECT
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final error = await ble.enableBluetooth();
+                                  if (context.mounted) {
+                                    if (error == 'already_on') {
+                                      _showCenterAlert(context, 'Bluetooth is already on', true);
+                                    } else {
+                                      _showCenterAlert(
+                                          context,
+                                          error ?? 'Bluetooth enabled successfully',
+                                          error == null);
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.bluetooth, size: 18),
+                                label: const Text(
+                                  'Enable Bluetooth',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  foregroundColor: const Color(0xFF0F172A),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
                               ),
-                              elevation: 0,
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  if (isConnected) {
+                                    ble.disconnectDevice();
+                                    _showCenterAlert(context, 'Device Disconnected', true);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('No device connected to disconnect')),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.bluetooth_disabled, size: 18),
+                                label: const Text(
+                                  'Disconnect',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFEE2E2),
+                                  foregroundColor: const Color(0xFFDC2626),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

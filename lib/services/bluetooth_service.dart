@@ -442,10 +442,6 @@ class BleService {
         _classicConnection!.output.add(
             Uint8List.fromList(utf8.encode('$command\n')));
         await _classicConnection!.output.allSent;
-        if (!isSync) {
-          // Background sync after SET command
-          unawaited(sendSyncCommand());
-        }
         return null;
       } catch (e) {
         debugPrint('Classic send failed: $e');
@@ -462,10 +458,6 @@ class BleService {
             if (c.properties.write || c.properties.writeWithoutResponse) {
               await c.write(utf8.encode('$command\n'),
                   withoutResponse: c.properties.writeWithoutResponse);
-              if (!isSync) {
-                // Background sync after SET command
-                unawaited(sendSyncCommand());
-              }
               return null;
             }
           }
@@ -565,8 +557,8 @@ class BleService {
       try {
         await completer.future.timeout(const Duration(seconds: 5));
         syncStatus.value = SyncStatus.SUCCESS;
-        // Briefly keep success state, then revert to idle if needed (though UI handles mapped logic)
-        unawaited(Future.delayed(const Duration(seconds: 2), () {
+        // Briefly keep success state, then revert to idle (aligned with 1.2s animation)
+        unawaited(Future.delayed(const Duration(milliseconds: 1200), () {
           if (syncStatus.value == SyncStatus.SUCCESS) {
             syncStatus.value = SyncStatus.IDLE;
           }
