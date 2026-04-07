@@ -843,8 +843,8 @@ class _TemperatureControlScreenState extends State<TemperatureControlScreen>
         return;
       }
 
-      // Step 3: App-controlled processing delay (FINAL 1.5s)
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Step 3: App-controlled processing delay (FINAL 2.5s)
+      await Future.delayed(const Duration(milliseconds: 2500));
 
       // Step 4: Trigger sync AFTER device finishes processing
       try {
